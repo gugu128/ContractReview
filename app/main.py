@@ -1,7 +1,10 @@
-from fastapi import FastAPI
+﻿from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.audit import router as audit_router
 from app.api.compare import router as compare_router
+from app.api.webhook import router as webhook_router
+from app.api.workbench import router as workbench_router
 
 
 def create_app() -> FastAPI:
@@ -11,8 +14,18 @@ def create_app() -> FastAPI:
         description="基于 RAG 的轻量级动态风控与审查工作台后端服务",
     )
 
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     app.include_router(audit_router, prefix="/api/v1")
     app.include_router(compare_router, prefix="/api/v1")
+    app.include_router(webhook_router, prefix="/api/v1")
+    app.include_router(workbench_router, prefix="/api/v1")
 
     @app.get("/health", tags=["system"])
     async def health_check() -> dict[str, str]:

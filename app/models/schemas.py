@@ -3,6 +3,22 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+class BotUploadEvent(BaseModel):
+    platform: str = Field(default="wechat", description="IM平台")
+    filename: str = Field(..., description="文件名")
+    file_url: str = Field(..., description="文件地址")
+    rule_set_id: str = Field(default="default", description="规则集ID")
+    workbench_url: str | None = Field(default=None, description="工作台地址")
+
+
+class BotCardResponse(BaseModel):
+    title: str
+    summary: str
+    severity: str
+    detail_url: str
+    status: str
+
+
 class CharIndex(BaseModel):
     start: int = Field(..., ge=0, description="原文起始下标")
     end: int = Field(..., ge=0, description="原文结束下标")
