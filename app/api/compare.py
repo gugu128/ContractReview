@@ -7,7 +7,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from app.models.schemas import CompareResult
 from app.services.compare_service import CompareService
 
-router = APIRouter(prefix="/api/v1", tags=["compare"])
+router = APIRouter(tags=["compare"])
 compare_service = CompareService()
 
 
