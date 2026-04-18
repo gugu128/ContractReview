@@ -1,0 +1,14 @@
+# 忽略前端依赖库（这是那 6300 个文件的来源）
+node_modules/
+frontend/node_modules/
+
+# 忽略 Python 缓存（防止出现图片里的 __pycache__）
+__pycache__/
+*.pyc
+
+# 忽略环境配置（保护你的 DeepSeek API Key 不被泄露）
+.env
+
+# 忽略打包产物
+dist/
+build/
