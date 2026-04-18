@@ -1,0 +1,8 @@
+streamlit==1.37.1
+fastapi==0.112.2
+uvicorn==0.30.6
+requests==2.32.3
+python-dotenv==1.0.1
+sentence-transformers==3.0.1
+faiss-cpu==1.13.2
+numpy>=2.1.0,<2.3.0
