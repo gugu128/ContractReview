@@ -31,6 +31,14 @@ class AuditResult(BaseModel):
     original_quote: str = Field(..., description="精确的原文引用")
     char_index: CharIndex = Field(..., description="用于前端高亮定位的字符坐标")
     suggestion: str = Field(..., description="修改建议")
+    suggested_revision: str | None = Field(default=None, description="建议修订后的条款")
+
+
+class ClarificationRequest(BaseModel):
+    question: str = Field(..., description="给用户的问题")
+    options: list[str] | None = Field(default=None, description="建议的选项")
+    context_fragment: str | None = Field(default=None, description="引发疑问的原文片段")
+    task_id: str | None = Field(default=None, description="挂起任务ID")
 
 
 class CompareResult(BaseModel):
@@ -40,3 +48,17 @@ class CompareResult(BaseModel):
     impact_analysis: str = Field(..., description="该变更对合同风险的影响分析")
     base_index: CharIndex = Field(..., description="旧版本字符坐标")
     current_index: CharIndex = Field(..., description="新版本字符坐标")
+
+
+class ExplainRequest(BaseModel):
+    result_id: str
+
+
+class ChallengeRequest(BaseModel):
+    result_id: str
+    message: str
+
+
+class ClarificationAnswerRequest(BaseModel):
+    task_id: str
+    answer: str

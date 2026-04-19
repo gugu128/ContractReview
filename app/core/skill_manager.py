@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+import sys
 
 
 @dataclass
@@ -95,9 +96,15 @@ class SkillManager:
 
     def _load_executor_module(self, skill_dir: Path, filename: str) -> Any:
         import importlib.util
+
         spec = importlib.util.spec_from_file_location(f"skills.{skill_dir.name}.executor", skill_dir / filename)
         if spec is None or spec.loader is None:
             raise RuntimeError(f"无法加载技能执行脚本: {skill_dir}")
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        sys.modules[spec.name] = module
+        try:
+            spec.loader.exec_module(module)
+        except Exception:
+            sys.modules.pop(spec.name, None)
+            raise
         return module

@@ -8,7 +8,7 @@ const levelColorMap = {
   严重: 'bg-rose-500/15 text-rose-300 ring-rose-500/20',
 }
 
-export default function ContractViewer({ file, documentText, results = [], compareResults = [], loading = false, onReset }) {
+export default function ContractViewer({ file, documentText, results = [], summaryResult = null, compareResults = [], loading = false, onReset, onExplainRisk, onChallengeRisk }) {
   const docRef = useRef(null)
   const [previewText, setPreviewText] = useState(documentText || '')
   const [activeId, setActiveId] = useState(null)
@@ -18,7 +18,7 @@ export default function ContractViewer({ file, documentText, results = [], compa
   }, [documentText])
 
   const ranges = useMemo(
-    () => results.map((item, index) => ({ ...item, start: item.char_index?.start ?? 0, end: item.char_index?.end ?? 0, id: `result-${index}` })),
+    () => results.map((item, index) => ({ ...item, start: item.char_index?.start ?? 0, end: item.char_index?.end ?? 0, id: item.id || `result-${index}` })),
     [results],
   )
 
@@ -39,7 +39,7 @@ export default function ContractViewer({ file, documentText, results = [], compa
     setPreviewText((prev) => prev.replace(current, suggestion || current))
   }
 
-  const empty = !loading && !file && results.length === 0
+  const empty = !loading && !file && results.length === 0 && !summaryResult
 
   return (
     <div className="grid min-h-[calc(100vh-9rem)] grid-cols-1 gap-4 p-4 lg:grid-cols-[1.3fr_0.9fr]">
@@ -98,6 +98,19 @@ export default function ContractViewer({ file, documentText, results = [], compa
           })}
         </div>
 
+        {summaryResult && (
+          <div className="mb-4 rounded-3xl border border-violet-400/20 bg-violet-500/10 p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-sm font-semibold text-violet-100">首席审计官总结</div>
+              <div className="text-xs text-violet-200">合规评分</div>
+            </div>
+            <div className="mb-3 h-2 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full bg-gradient-to-r from-sky-400 to-violet-400" style={{ width: `${Math.max(10, 100 - (results.filter((item) => item.risk_level !== '低').length * 12))}%` }} />
+            </div>
+            <p className="text-sm leading-6 text-slate-100">{summaryResult.risk_description}</p>
+          </div>
+        )}
+
         <div className="space-y-3 overflow-auto pr-1" style={{ maxHeight: '58vh' }}>
           {results.length === 0 && !loading ? (
             <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-center text-sm text-slate-400">上传后这里会出现结构化风险卡片；如果接口返回空数组，也会展示空态。</div>
@@ -110,10 +123,24 @@ export default function ContractViewer({ file, documentText, results = [], compa
               </div>
               <p className="text-sm leading-6 text-slate-200">{item.risk_description}</p>
               <p className="mt-3 rounded-xl bg-slate-900/80 p-3 text-xs leading-6 text-slate-300">{item.original_quote}</p>
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <button className="rounded-xl bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200 transition hover:bg-emerald-500/20" onClick={(e) => { e.stopPropagation(); applySuggestion(item) }}>
-                  一键替换
-                </button>
+              {item.suggested_revision && (
+                <div className="mt-3 rounded-xl border border-dashed border-violet-400/20 bg-violet-500/10 p-3 text-xs text-violet-100">
+                  <div className="mb-2 font-semibold">Suggested Revision</div>
+                  <pre className="whitespace-pre-wrap break-words">{item.suggested_revision}</pre>
+                </div>
+              )}
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex gap-2">
+                  <button className="rounded-xl bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200 transition hover:bg-emerald-500/20" onClick={(e) => { e.stopPropagation(); applySuggestion(item) }}>
+                    一键替换
+                  </button>
+                  <button className="rounded-xl bg-sky-500/10 px-3 py-2 text-xs text-sky-200 transition hover:bg-sky-500/20" onClick={(e) => { e.stopPropagation(); onExplainRisk?.(item.id) }}>
+                    为什么？
+                  </button>
+                  <button className="rounded-xl bg-rose-500/10 px-3 py-2 text-xs text-rose-200 transition hover:bg-rose-500/20" onClick={(e) => { e.stopPropagation(); onChallengeRisk?.(item.id) }}>
+                    我不认同
+                  </button>
+                </div>
                 <span className="text-xs text-slate-500">{item.char_index?.start} ~ {item.char_index?.end}</span>
               </div>
             </article>
