@@ -35,8 +35,14 @@ async def upload_audit(file: UploadFile = File(...), rule_set_id: str = Form(def
     temp_path = temp_dir / f"{uuid4().hex}_{file.filename}"
     temp_path.write_bytes(data)
 
+    print(f"[Backend] 上传成功: {file.filename} -> {temp_path.name}")
+    print(f"[Backend] 正在审查: rule_set_id={rule_set_id}")
+    print("[Backend] DeepSeek 调用中...")
+
     try:
         results = audit_service.audit_contract_file(temp_path, rule_set_id=rule_set_id)
+        print(f"[Backend] 审查完成: {len(results)} 条结果")
+        return results
     except Exception as exc:
+        print(f"[Backend] 审查失败: {exc}")
         raise HTTPException(status_code=500, detail=f"审查失败：{exc}") from exc
-    return results
