@@ -37,6 +37,8 @@ class AuditService:
         skill = self._skill_manager.get("contract_audit")
         if skill:
             print("[Skills] 正在调用执行脚本: executor.py")
+        else:
+            print("[Skills-Error] 未找到 contract_audit 技能，将使用内置降级流程")
 
         print(f"[Audit] 开始审查: file_path={file_path}, rule_set_id={rule_set_id}, chunks={len(chunks)}, windows={len(windows)}")
         print(f"[Audit] 片段并行发起中: 共 {len(windows)} 个请求")
@@ -72,11 +74,16 @@ class AuditService:
         if not results:
             global_rules = self._search_rules(text, rule_set_id=rule_set_id, top_k=8)
             print(f"[Audit] 全文规则命中数: {len(global_rules)}")
-            executor = getattr(skill.executor_module, "ContractAuditExecutor", None)
-            if executor:
-                fallback_results = executor().run_audit(text, global_rules, source_text=text, chunk_start=0, chunk_end=len(text))
+            if skill and hasattr(skill.executor_module, "ContractAuditExecutor"):
+                fallback_results = skill.executor_module.ContractAuditExecutor().run_audit(
+                    text,
+                    global_rules,
+                    source_text=text,
+                    chunk_start=0,
+                    chunk_end=len(text),
+                )
             else:
-                fallback_results = []
+                fallback_results = self._fallback_rule_based_results(text, chunks[0] if chunks else DocumentChunk(text=text, start=0, end=len(text), source_name=""), global_rules)
             print(f"[Audit] fallback 命中: {len(fallback_results)}")
             results.extend(fallback_results)
 
@@ -123,7 +130,7 @@ class AuditService:
         else:
             prompt = self._build_prompt(chunk_text, rules, source_text=source_text)
             system_prompt = self._system_prompt()
-        return self._client.chat(prompt, system_prompt=system_prompt, task_type="reasoning")
+        return self._client.chat(prompt, system_prompt=system_prompt, task_type="analysis")
 
     def _system_prompt(self) -> str:
         return (
@@ -157,6 +164,8 @@ class AuditService:
         if skill and hasattr(skill.executor_module, "ContractAuditExecutor"):
             executor = skill.executor_module.ContractAuditExecutor()
             return executor.parse_llm_results(raw_response, source_text=source_text, chunk_start=chunk.start, chunk_end=chunk.end)
+        if not skill:
+            print("[Skills-Error] 技能未加载，采用内置 JSON 解析器")
         cleaned = self._extract_json_block(raw_response)
         try:
             payload = json.loads(cleaned)

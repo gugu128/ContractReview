@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from importlib import import_module
 from pathlib import Path
 from typing import Any
 
@@ -60,24 +59,35 @@ class SkillManager:
         return self.skills.get(skill_id)
 
     def _parse_metadata(self, metadata_file: Path) -> dict[str, Any]:
-        try:
-            yaml = import_module("yaml")
-        except Exception as exc:
-            raise ValueError(f"PyYAML 未安装: {exc}") from exc
-        try:
-            data = yaml.safe_load(metadata_file.read_text(encoding="utf-8")) or {}
-        except Exception as exc:
-            raise ValueError(f"metadata.yaml 解析失败: {exc}") from exc
-        if not isinstance(data, dict):
-            raise ValueError("metadata.yaml 必须是字典结构")
+        data: dict[str, Any] = {}
+        current_list_key: str | None = None
+        for raw_line in metadata_file.read_text(encoding="utf-8").splitlines():
+            line = raw_line.rstrip()
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            if stripped.startswith("-") and current_list_key:
+                data.setdefault(current_list_key, []).append(stripped.lstrip("- ").strip())
+                continue
+            if ":" in stripped:
+                key, value = stripped.split(":", 1)
+                key = key.strip()
+                value = value.strip()
+                current_list_key = key if value == "" else None
+                if value:
+                    data[key] = value
+                else:
+                    data.setdefault(key, [])
+        if not data:
+            raise ValueError("metadata.yaml 为空或无法解析")
         return data
 
     def _validate_metadata(self, skill_dir: Path, metadata: dict[str, Any]) -> None:
-        required_fields = ["id", "version", "instructions_file"]
+        required_fields = ["id", "version", "entrypoint"]
         missing = [field for field in required_fields if not metadata.get(field)]
         if missing:
             raise ValueError(f"缺失关键字段: {', '.join(missing)}")
-        instructions_file = skill_dir / str(metadata["instructions_file"])
+        instructions_file = skill_dir / str(metadata.get("instructions_file", "instructions.md"))
         if not instructions_file.exists():
             raise ValueError(f"instructions_file 不存在: {instructions_file.name}")
         if str(metadata["id"]).strip() != skill_dir.name:

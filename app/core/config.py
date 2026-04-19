@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     deepseek_api_key: str
     deepseek_base_url: str = "https://api.deepseek.com"
-    deepseek_reasoning_model: str = "deepseek-reasoner"
+    deepseek_reasoning_model: str = "deepseek-chat"
     deepseek_fast_model: str = "deepseek-chat"
     doubao_model: str = "doubao-1.5-pro"
     request_timeout: float = 60.0

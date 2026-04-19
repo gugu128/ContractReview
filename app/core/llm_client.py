@@ -38,7 +38,7 @@ class DeepSeekClient:
     def route_model(self, task_type: str) -> str:
         normalized = task_type.lower().strip()
         if normalized in {"reasoning", "risk", "impact", "analysis", "critical"}:
-            return self._reasoning_model
+            return self._fast_model
         if normalized in {"parse", "summary", "extract", "draft", "fast"}:
             return self._fallback_model or self._fast_model
         return self._fast_model
