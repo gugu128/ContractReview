@@ -28,7 +28,7 @@ class DeepSeekClient:
         self._client = OpenAI(
             api_key=settings.deepseek_api_key,
             base_url=settings.deepseek_base_url,
-            timeout=settings.request_timeout,
+            timeout=max(settings.request_timeout, 60.0),
         )
         self._reasoning_model = settings.deepseek_reasoning_model
         self._fast_model = settings.deepseek_fast_model
@@ -82,12 +82,12 @@ class DeepSeekClient:
                     stream=stream,
                     **kwargs,
                 )
-            except OpenAIError as exc:
+            except Exception as exc:
                 last_error = exc
                 if attempt >= self._max_retries:
                     break
-                time.sleep(min(2 ** (attempt - 1), 8))
-        raise RuntimeError("DeepSeek request failed after retries") from last_error
+                time.sleep(min(2 ** (attempt - 1), 10))
+        raise RuntimeError(f"DeepSeek request failed after retries: {last_error}") from last_error
 
     def stream_chat_completion(
         self,

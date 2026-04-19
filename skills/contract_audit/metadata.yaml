@@ -1,0 +1,13 @@
+id: contract_audit
+version: 1.0.0
+title: 合同审核技能
+description: 面向合同风险识别、合规审查与坐标定位的标准化审核技能。
+triggers:
+  - 审核
+  - 风险
+  - 合规
+  - 合同审查
+  - 风控
+  - 违约
+  - 条款检查
+entrypoint: executor.py

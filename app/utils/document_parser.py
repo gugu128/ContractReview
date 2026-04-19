@@ -33,7 +33,8 @@ class DocumentParser:
             text = self._parse_word(path)
         else:
             text = path.read_text(encoding="utf-8", errors="ignore")
-        chunks = self.chunk_text(text, chunk_size=800, overlap=120, source_name=path.name)
+        chunk_size, overlap = self._choose_chunk_params(text)
+        chunks = self.chunk_text(text, chunk_size=chunk_size, overlap=overlap, source_name=path.name)
         return text, chunks
 
     def _parse_pdf(self, path: Path) -> str:
@@ -146,10 +147,19 @@ class DocumentParser:
             return None
         return int(page_markers[-1].group(1))
 
+    def _choose_chunk_params(self, text: str) -> tuple[int, int]:
+        length = len(text)
+        if length <= 2000:
+            return 1200, 80
+        if length <= 6000:
+            return 1000, 100
+        return 850, 120
+
     def _fallback_chunks(self, text: str, *, chunk_size: int, overlap: int, source_name: str) -> list[DocumentChunk]:
         chunks: list[DocumentChunk] = []
         start = 0
         text_length = len(text)
+        step = max(1, chunk_size - overlap)
         while start < text_length:
             end = min(start + chunk_size, text_length)
             if end < text_length:
@@ -163,25 +173,31 @@ class DocumentParser:
                 chunks.append(DocumentChunk(text=chunk_text, start=actual_start, end=actual_end, source_name=source_name))
             if end >= text_length:
                 break
-            start = max(end - overlap, start + 1)
+            start = max(start + step, end - overlap)
         return chunks
 
     def _merge_overlapping_chunks(self, chunks: list[DocumentChunk]) -> list[DocumentChunk]:
         merged: list[DocumentChunk] = []
         for chunk in chunks:
-            if merged and chunk.start <= merged[-1].end and merged[-1].title_path == chunk.title_path:
+            if merged:
                 prev = merged[-1]
-                merged[-1] = DocumentChunk(
-                    text=f"{prev.text}\n{chunk.text}",
-                    start=prev.start,
-                    end=max(prev.end, chunk.end),
-                    source_name=chunk.source_name,
-                    title_path=chunk.title_path,
-                    level=max(prev.level, chunk.level),
-                    page_start=prev.page_start,
-                    page_end=chunk.page_end,
-                )
-                continue
+                overlap_len = max(0, min(prev.end, chunk.end) - max(prev.start, chunk.start))
+                prev_len = max(1, prev.end - prev.start)
+                curr_len = max(1, chunk.end - chunk.start)
+                overlap_ratio_prev = overlap_len / prev_len
+                overlap_ratio_curr = overlap_len / curr_len
+                if chunk.title_path == prev.title_path and overlap_ratio_prev >= 0.45 and overlap_ratio_curr >= 0.45:
+                    merged[-1] = DocumentChunk(
+                        text=f"{prev.text}\n{chunk.text}",
+                        start=prev.start,
+                        end=max(prev.end, chunk.end),
+                        source_name=chunk.source_name,
+                        title_path=chunk.title_path,
+                        level=max(prev.level, chunk.level),
+                        page_start=prev.page_start,
+                        page_end=chunk.page_end,
+                    )
+                    continue
             merged.append(chunk)
         return merged
 
