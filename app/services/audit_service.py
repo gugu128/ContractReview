@@ -10,9 +10,11 @@ from typing import Any
 
 from app.core.llm_client import DeepSeekClient
 from app.core.skill_manager import SkillManager
-from app.models.schemas import AuditResult, CharIndex
+from app.models.schemas import AuditResult
 from app.services.vector_service import VectorService
 from app.utils.document_parser import DocumentChunk, DocumentParser
+
+
 
 
 class AuditService:
@@ -70,7 +72,11 @@ class AuditService:
         if not results:
             global_rules = self._search_rules(text, rule_set_id=rule_set_id, top_k=8)
             print(f"[Audit] 全文规则命中数: {len(global_rules)}")
-            fallback_results = self._fallback_rule_based_results(text, chunks[0] if chunks else type("Chunk", (), {"text": text, "start": 0, "end": len(text)})(), global_rules)
+            executor = getattr(skill.executor_module, "ContractAuditExecutor", None)
+            if executor:
+                fallback_results = executor().run_audit(text, global_rules, source_text=text, chunk_start=0, chunk_end=len(text))
+            else:
+                fallback_results = []
             print(f"[Audit] fallback 命中: {len(fallback_results)}")
             results.extend(fallback_results)
 

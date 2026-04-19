@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from importlib import import_module
 from pathlib import Path
 from typing import Any
 
@@ -33,48 +34,54 @@ class SkillManager:
             instructions_file = skill_dir / "instructions.md"
             executor_file = skill_dir / "executor.py"
             if not metadata_file.exists() or not instructions_file.exists() or not executor_file.exists():
+                print(f"[Skills-Error] 技能资源不完整，已跳过: {skill_dir.name}")
                 continue
-            metadata = self._parse_metadata(metadata_file)
-            if not metadata:
-                continue
-            skill_id = metadata.get("id", skill_dir.name)
-            executor_module = self._load_executor_module(skill_dir, executor_file.name)
-            package = SkillPackage(
-                skill_id=skill_id,
-                version=metadata.get("version", "0.0.0"),
-                title=metadata.get("title", skill_id),
-                description=metadata.get("description", ""),
-                triggers=metadata.get("triggers", []),
-                path=skill_dir,
-                instructions=instructions_file.read_text(encoding="utf-8"),
-                executor_module=executor_module,
-            )
-            self.skills[skill_id] = package
-            print(f"[Skills] 成功加载技能: {skill_id}")
+            try:
+                metadata = self._parse_metadata(metadata_file)
+                self._validate_metadata(skill_dir, metadata)
+                executor_module = self._load_executor_module(skill_dir, executor_file.name)
+                skill_id = str(metadata["id"])
+                package = SkillPackage(
+                    skill_id=skill_id,
+                    version=str(metadata["version"]),
+                    title=str(metadata.get("title", skill_id)),
+                    description=str(metadata.get("description", "")),
+                    triggers=list(metadata.get("triggers", [])),
+                    path=skill_dir,
+                    instructions=instructions_file.read_text(encoding="utf-8"),
+                    executor_module=executor_module,
+                )
+                self.skills[skill_id] = package
+                print(f"[Skills] 成功加载技能: {skill_id}")
+            except Exception as exc:
+                print(f"[Skills-Error] 技能加载失败，已跳过 {skill_dir.name}: {exc}")
 
     def get(self, skill_id: str) -> SkillPackage | None:
         return self.skills.get(skill_id)
 
     def _parse_metadata(self, metadata_file: Path) -> dict[str, Any]:
-        data: dict[str, Any] = {}
-        current_list_key: str | None = None
-        for raw_line in metadata_file.read_text(encoding="utf-8").splitlines():
-            line = raw_line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if line.startswith("-") and current_list_key:
-                data.setdefault(current_list_key, []).append(line.lstrip("- ").strip())
-                continue
-            if ":" in line:
-                key, value = line.split(":", 1)
-                key = key.strip()
-                value = value.strip()
-                current_list_key = key if value == "" else None
-                if value:
-                    data[key] = value
-                else:
-                    data.setdefault(key, [])
+        try:
+            yaml = import_module("yaml")
+        except Exception as exc:
+            raise ValueError(f"PyYAML 未安装: {exc}") from exc
+        try:
+            data = yaml.safe_load(metadata_file.read_text(encoding="utf-8")) or {}
+        except Exception as exc:
+            raise ValueError(f"metadata.yaml 解析失败: {exc}") from exc
+        if not isinstance(data, dict):
+            raise ValueError("metadata.yaml 必须是字典结构")
         return data
+
+    def _validate_metadata(self, skill_dir: Path, metadata: dict[str, Any]) -> None:
+        required_fields = ["id", "version", "instructions_file"]
+        missing = [field for field in required_fields if not metadata.get(field)]
+        if missing:
+            raise ValueError(f"缺失关键字段: {', '.join(missing)}")
+        instructions_file = skill_dir / str(metadata["instructions_file"])
+        if not instructions_file.exists():
+            raise ValueError(f"instructions_file 不存在: {instructions_file.name}")
+        if str(metadata["id"]).strip() != skill_dir.name:
+            raise ValueError(f"技能 id 与目录名不一致: {metadata['id']} != {skill_dir.name}")
 
     def _load_executor_module(self, skill_dir: Path, filename: str) -> Any:
         import importlib.util

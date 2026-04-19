@@ -1,7 +1,12 @@
 id: contract_audit
 version: 1.0.0
 title: 合同审核技能
-description: 面向合同风险识别、合规审查与坐标定位的标准化审核技能。
+description: 面向合同风险识别、合规审查、坐标定位与规则兜底的标准化审核技能。
+use_cases:
+  - 劳动合同中的试用期工资、加班、社保与离职风险识别
+  - 租赁合同中的押金、转租、维修与违约责任检查
+  - 服务合同中的SLA、知识产权、验收与终止条款审查
+  - 借款合同中的利息、罚息、担保与强制扣款检查
 triggers:
   - 审核
   - 风险
@@ -10,4 +15,5 @@ triggers:
   - 风控
   - 违约
   - 条款检查
+instructions_file: instructions.md
 entrypoint: executor.py
